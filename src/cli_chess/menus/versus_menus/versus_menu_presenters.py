@@ -1,8 +1,10 @@
 from __future__ import annotations
 from cli_chess.menus.versus_menus import VersusMenuView, OnlineVsPlayerMenuView
+from cli_chess.menus.versus_menus.versus_menu_views import OfflineVersusMenuView
 from cli_chess.menus import MultiValueMenuPresenter
 from cli_chess.core.game.game_options import GameOption, BaseGameOptions, OfflineGameOptions, OnlinePublicGameOptions, OnlineVsComputerGameOptions, OnlineDirectChallengesGameOptions  # noqa: E501
 from cli_chess.core.game import start_online_game, start_offline_game
+from cli_chess.core.game.fen_validation import validate_starting_fen
 from cli_chess.utils import log
 from abc import ABC, abstractmethod
 from typing import TYPE_CHECKING, Type, Optional
@@ -43,7 +45,20 @@ class OfflineVersusMenuPresenter(VersusMenuPresenter):
     """Defines the presenter for the OfflineVsComputer menu"""
     def __init__(self, model: OfflineVsComputerMenuModel):
         self.model = model
-        super().__init__(self.model)
+        super().__init__(self.model, view=OfflineVersusMenuView(self))
+
+    def is_custom_position_enabled(self) -> bool:
+        """Whether a custom starting position was selected in the offline menu."""
+        return any(option.option is GameOption.CUSTOM_POSITION and
+                   option.selected_value['name'] == "Yes"
+                   for option in self.get_menu_options())
+
+    def _create_dict_of_selected_values(self, game_options_cls: Type[BaseGameOptions]) -> dict:
+        params = super()._create_dict_of_selected_values(game_options_cls)
+        if params.get(GameOption.CUSTOM_POSITION):
+            params[GameOption.CUSTOM_FEN] = validate_starting_fen(
+                self.view.get_fen(), params[GameOption.VARIANT])
+        return params
 
     def value_cycled_handler(self, selected_option: int):
         """A handler that's called when the value of the selected option changed"""
@@ -53,12 +68,19 @@ class OfflineVersusMenuPresenter(VersusMenuPresenter):
 
         if selected_option == GameOption.SPECIFY_ELO:
             self.model.show_elo_selection_option(selected_value == "Yes")
+        elif selected_option == GameOption.CUSTOM_POSITION:
+            self.view.alert.clear_alert()
+            if selected_value == "Yes":
+                self.view.focus_fen_input()
 
     def handle_start_game(self) -> None:
         """Starts the game using the currently selected menu values"""
         try:
-            game_parameters = super()._create_dict_of_selected_values(OfflineGameOptions)
+            game_parameters = self._create_dict_of_selected_values(OfflineGameOptions)
+            self.view.alert.clear_alert()
             start_offline_game(game_parameters)
+        except ValueError as e:
+            self.view.alert.show_alert(str(e))
         except Exception as e:
             log.error(e)
             raise
