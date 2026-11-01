@@ -15,6 +15,8 @@ class GameOption(Enum):
     RATING_RANGE = "Rating Range"
     COLOR = "Side to play as"
     OPPONENT = "Opponent"
+    CUSTOM_POSITION = "Custom position"
+    CUSTOM_FEN = "Starting FEN"
 
 
 class BaseGameOptions(ABC):
@@ -31,7 +33,7 @@ class BaseGameOptions(ABC):
         for key in menu_selections:
             try:
                 value = menu_selections[key]
-                if key == GameOption.SPECIFY_ELO:
+                if key in (GameOption.SPECIFY_ELO, GameOption.CUSTOM_POSITION):
                     value = str_to_bool(value)
 
                 opt_dict = self.dict_map.get(key)

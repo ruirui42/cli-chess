@@ -1,6 +1,6 @@
 from __future__ import annotations
 from cli_chess.menus import MultiValueMenuView
-from cli_chess.utils.ui_common import handle_mouse_click, handle_bound_key_pressed
+from cli_chess.utils.ui_common import handle_mouse_click, handle_bound_key_pressed, AlertContainer
 from prompt_toolkit.filters import Condition
 from prompt_toolkit.layout import Container, ConditionalContainer, VSplit, HSplit, D, Window, FormattedTextControl
 from prompt_toolkit.key_binding import KeyBindings
@@ -31,6 +31,84 @@ class VersusMenuView(MultiValueMenuView):
         kb = KeyBindings()
         kb.add(Keys.F1)(handle_bound_key_pressed(self.presenter.handle_start_game))
         return kb
+
+
+class OfflineVersusMenuView(VersusMenuView):
+    """Offline-only custom FEN entry.
+
+    The input remains visible even when the toggle is off. Keeping it in the
+    layout avoids prompt_toolkit focus and layout refresh issues when the
+    toggle changes; the presenter ignores its contents while disabled.
+    """
+    def _create_container(self) -> Container:
+        self._fen_input = TextArea(
+            multiline=False,
+            wrap_lines=False,
+            style="class:text-area.input",
+            focus_on_click=True,
+            width=D(max=80),
+            height=D(max=1),
+        )
+        self._menu_container = super()._create_container()
+        self.alert = AlertContainer()
+        return HSplit([
+            self._menu_container,
+            Box(Window(), height=D(min=1, max=1)),
+            HSplit([
+                Label("FEN (used when Custom position = Yes):", style="bold", dont_extend_width=True),
+                self._fen_input,
+            ], key_bindings=self._fen_key_bindings()),
+            self.alert,
+        ], width=D(max=95))
+
+    def _fen_key_bindings(self) -> KeyBindings:
+        bindings = KeyBindings()
+
+        @bindings.add(Keys.Up, eager=True)
+        def _(event):  # noqa
+            """Move from FEN input to the final menu option."""
+            if get_app().layout.has_focus(self._fen_input):
+                self.select_option(len(self.presenter.get_visible_menu_options()) - 1)
+
+        @bindings.add(Keys.Down, eager=True)
+        def _(event):  # noqa
+            """Move from FEN input to the first menu option."""
+            if get_app().layout.has_focus(self._fen_input):
+                self.select_option(0)
+
+        return bindings
+
+    def _create_key_bindings(self) -> KeyBindings:
+        bindings = super()._create_key_bindings()
+
+        @bindings.add(Keys.Down, eager=True)
+        def _(event):  # noqa
+            last = len(self.presenter.get_visible_menu_options()) - 1
+            if self.selected_option == last and self.presenter.is_custom_position_enabled():
+                self.focus_fen_input()
+            else:
+                self.select_next_option()
+
+        @bindings.add(Keys.Up, eager=True)
+        def _(event):  # noqa
+            if self.selected_option == 0 and self.presenter.is_custom_position_enabled():
+                self.focus_fen_input()
+            else:
+                self.select_previous_option()
+
+        return bindings
+
+    def get_fen(self) -> str:
+        return self._fen_input.text.strip()
+
+    def focus_fen_input(self) -> None:
+        get_app().layout.focus(self._fen_input)
+
+    def has_focus(self) -> bool:
+        return get_app().layout.has_focus(self._menu_container)
+
+    def focus(self) -> None:
+        get_app().layout.focus(self._menu_container)
 
 
 class OnlineVsPlayerMenuView(VersusMenuView):

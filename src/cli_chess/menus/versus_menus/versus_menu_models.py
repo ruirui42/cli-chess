@@ -22,6 +22,7 @@ class OfflineVsComputerMenuModel(VersusMenuModel):
             MultiValueMenuOption(GameOption.COMPUTER_SKILL_LEVEL, "Choose the skill level of the computer", [option for option in OfflineGameOptions.skill_level_options_dict]),  # noqa: E501
             MultiValueMenuOption(GameOption.COMPUTER_ELO, "Choose the Elo of the computer", list(range(500, 2850, 25)), visible=False),
             MultiValueMenuOption(GameOption.COLOR, "Choose the side you would like to play as", [option for option in OfflineGameOptions.color_options]),  # noqa: E501
+            MultiValueMenuOption(GameOption.CUSTOM_POSITION, "Start from a custom FEN", ["No", "Yes"]),
         ]
         return MenuCategory("Play Offline vs Computer", menu_options)
 

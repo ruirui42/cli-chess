@@ -10,7 +10,8 @@ from typing import Optional, Dict
 class OfflineGameModel(PlayableGameModelBase):
     def __init__(self, game_parameters: dict):
         super().__init__(play_as_color=game_parameters[GameOption.COLOR],
-                         variant=game_parameters[GameOption.VARIANT])
+                         variant=game_parameters[GameOption.VARIANT],
+                         fen=game_parameters.get(GameOption.CUSTOM_FEN, ""))
 
         self.engine_model = EngineModel(self.board_model, game_parameters)
         self.game_in_progress = True
